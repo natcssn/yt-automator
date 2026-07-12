@@ -50,6 +50,36 @@ function runFfmpegWithFallback(ffmpegArgs, useGpu) {
     });
 }
 
+let nvencCachedStatus = null;
+
+async function checkNvencSupport() {
+    if (nvencCachedStatus !== null) return nvencCachedStatus;
+    return new Promise((resolve) => {
+        const proc = spawn(ffmpegPath, ['-h', 'encoder=h264_nvenc'], { windowsHide: true });
+        proc.on('close', code => {
+            nvencCachedStatus = (code === 0);
+            resolve(nvencCachedStatus);
+        });
+        proc.on('error', () => {
+            nvencCachedStatus = false;
+            resolve(false);
+        });
+    });
+}
+
+async function getEncoderCodec() {
+    const envVal = (process.env.NVIDIA_GPU || 'auto').trim().toLowerCase();
+    if (envVal === 'false') {
+        return 'libx264';
+    }
+    if (envVal === 'true') {
+        return 'h264_nvenc';
+    }
+    const supported = await checkNvencSupport();
+    console.log(`[encoder-detect] Auto-detected NVENC GPU support: ${supported ? 'AVAILABLE' : 'NOT AVAILABLE'}`);
+    return supported ? 'h264_nvenc' : 'libx264';
+}
+
 /**
  * Probe a video file using ffprobe.
  */
@@ -175,9 +205,10 @@ async function combineBuffer(folderName, options = {}) {
         namesArray.push(probe.video);
     }
 
+    const vcodec = await getEncoderCodec();
+    const useGpu = vcodec === 'h264_nvenc';
+
     return new Promise((resolve, reject) => {
-        const useGpu = (process.env.NVIDIA_GPU || 'false').trim().toLowerCase() === 'true';
-        const vcodec = useGpu ? 'h264_nvenc' : 'libx264';
 
         /**
          * Build the ffmpeg input list and filter_complex string.
@@ -298,9 +329,10 @@ async function combineBuffer3(folderName, options = {}) {
         namesArray.push(probe.video);
     }
 
+    const vcodec = await getEncoderCodec();
+    const useGpu = vcodec === 'h264_nvenc';
+
     return new Promise((resolve, reject) => {
-        const useGpu = (process.env.NVIDIA_GPU || 'false').trim().toLowerCase() === 'true';
-        const vcodec = useGpu ? 'h264_nvenc' : 'libx264';
 
         const inputArgs = [];
         const filterParts = [];
@@ -540,9 +572,10 @@ async function combineAndOverlaySinglePass(folderName, videoTitle, captions, opt
     filterParts.push(`[concatv]${drawtexts.join(',')}[outv]`);
     const filterComplex = filterParts.join(';');
 
+    const vcodec = await getEncoderCodec();
+    const useGpu = vcodec === 'h264_nvenc';
+
     return new Promise((resolve, reject) => {
-        const useGpu = (process.env.NVIDIA_GPU || 'false').trim().toLowerCase() === 'true';
-        const vcodec = useGpu ? 'h264_nvenc' : 'libx264';
 
         const ffmpegArgs = [
             ...inputArgs,

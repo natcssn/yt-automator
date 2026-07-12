@@ -19,6 +19,9 @@ dist/
 build/
 client/dist/
 client/build/
+release/
+release-*
+YT Made EZ/
 
 # ── Video / Media files ───────────────────────────────────────────────────────
 *.mp4
@@ -69,7 +72,3 @@ __pycache__/
 *.pyd
 *.egg-info/
 .Python
-
-# ── Electron / Large Build Files ──────────────────────────────────────────────
-YT Made EZ/
-YT Made EZ/
