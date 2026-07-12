@@ -25,7 +25,8 @@ install_deps_if_needed "$SERVER_DIR" "server"
 install_deps_if_needed "$CLIENT_DIR" "client"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  echo "Warning: server/.env not found. Create it before running the backend."
+  echo "Creating default .env from .env.example..."
+  cp "$SERVER_DIR/.env.example" "$ENV_FILE"
 fi
 
 cleanup() {
