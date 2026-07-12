@@ -108,7 +108,7 @@ export default function CompileWizard({ onClose, ytDefaults }) {
     useEffect(() => {
         if (saved?.step >= 2 && saved?.jobId) {
             axios.get(`${API_URL}/video/status/${saved.jobId}`)
-                .then(r => { if (r.data.status === 'ready') setJobStatus({ status: 'ready', progress: 100, message: '🎉 Video ready!' }); else setStep(0) })
+                .then(r => { if (r.data.status === 'ready') setJobStatus(r.data); else setStep(0) })
                 .catch(() => { setStep(0); setJobId(null) })
         }
     }, [])
@@ -361,12 +361,33 @@ export default function CompileWizard({ onClose, ytDefaults }) {
                                 }}
                             />
                             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
-                                <a href={`/api/video/download/${jobId}`} download={`compile_video_${Date.now()}.mp4`} className="btn-secondary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7 }}>⬇️ Download Video</a>
-                                <button className="btn-secondary" onClick={handleShare} disabled={shareStatus === 'uploading'} type="button">🔗 Share via Filebin</button>
+                                {window.electronAPI ? (
+                                    <button
+                                        className="btn-primary"
+                                        onClick={async () => {
+                                            if (jobStatus.outputFile) {
+                                                const defaultName = `compile_video_${Date.now()}.mp4`;
+                                                const res = await window.electronAPI.saveVideo(jobStatus.outputFile, defaultName);
+                                                if (res.success) {
+                                                    window.electronAPI.showNotification('Video Saved', `Video saved to ${res.path}`);
+                                                }
+                                            }
+                                        }}
+                                        style={{ background: 'linear-gradient(135deg, #34A853, #2E7D32)' }}
+                                        type="button"
+                                    >
+                                        💾 Save Video to Disk
+                                    </button>
+                                ) : (
+                                    <>
+                                        <a href={`/api/video/download/${jobId}`} download={`compile_video_${Date.now()}.mp4`} className="btn-secondary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7 }}>⬇️ Download Video</a>
+                                        <button className="btn-secondary" onClick={handleShare} disabled={shareStatus === 'uploading'} type="button">🔗 Share via Filebin</button>
+                                    </>
+                                )}
                             </div>
-                            {shareStatus === 'uploading' && <p style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: 13, marginBottom: 12 }}>Uploading to Filebin...</p>}
-                            {shareStatus === 'error' && <p style={{ color: '#EA4335', textAlign: 'center', fontSize: 13, marginBottom: 12 }}>{shareError || 'Filebin upload failed'}</p>}
-                            {shareStatus === 'success' && shareUrl && <div className="share-link"><span className="share-label">Filebin URL</span><a href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a></div>}
+                            {!window.electronAPI && shareStatus === 'uploading' && <p style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: 13, marginBottom: 12 }}>Uploading to Filebin...</p>}
+                            {!window.electronAPI && shareStatus === 'error' && <p style={{ color: '#EA4335', textAlign: 'center', fontSize: 13, marginBottom: 12 }}>{shareError || 'Filebin upload failed'}</p>}
+                            {!window.electronAPI && shareStatus === 'success' && shareUrl && <div className="share-link"><span className="share-label">Filebin URL</span><a href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a></div>}
                             <div className="actions-row">
                                 <button className="btn-secondary" onClick={() => { setStep(0); setDirection(-1); }}><FaArrowLeft /> Back</button>
                                 <button className="btn-primary" onClick={() => go(1)} style={{ background: 'linear-gradient(135deg, #A142F4, #8b25e2)' }}>Next: YT Details <FaArrowRight /></button>

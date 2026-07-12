@@ -1,11 +1,22 @@
+import { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Navbar from './components/Navbar'
+import TitleBar from './components/TitleBar'
 import Home from './pages/Home'
 import Login from './pages/Login'
 
 function AppContent() {
     const { appAuthenticated, loading } = useAuth()
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && !!window.electronAPI) {
+            document.body.classList.add('has-titlebar')
+        }
+        return () => {
+            document.body.classList.remove('has-titlebar')
+        }
+    }, [])
 
     if (loading && !appAuthenticated) {
         return (
@@ -31,11 +42,17 @@ function AppContent() {
     }
 
     if (!appAuthenticated) {
-        return <Login />
+        return (
+            <>
+                <TitleBar />
+                <Login />
+            </>
+        )
     }
 
     return (
         <Router>
+            <TitleBar />
             <Navbar />
             <Routes>
                 <Route path="/" element={<Home />} />
