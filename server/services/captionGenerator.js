@@ -134,29 +134,32 @@ async function generateCaptionForClip(filePath, existingCaptions = []) {
         const duration = await probeDuration(filePath);
         const videoBuffer = await processClipForGemini(filePath, duration);
         const ai = new GoogleGenAI({ apiKey });
-        const model = process.env.GEMINI_MODEL || 'gemma-4-31b-it';
+        const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
         const categoriesRaw = process.env.CATEGORIES || 'cats, dogs, memes, other';
         const categories = categoriesRaw.split(',').map(c => c.trim()).filter(Boolean);
-        const blacklist = [...getAllVideos(), ...existingCaptions];
+        // Only blacklist actual text captions, not raw video filenames
+        const blacklist = [...existingCaptions];
 
         const prompt = [
-            'You are a classifier and video describer. AND FOLLOW STRICT INSTUCTION. OUPUT ONLY JSON AND NOTHING ELSE.',
-            'Make a high descriptive caption for the given video. And add a bit of humor, or make the caption catchy. Strict 2 word caption limit. Do not use any special characters or symbols in the caption as it will be used as a filename.',
+            'You are an advanced video analysis AI. Carefully watch the provided video clip.',
+            'Determine the subject of the video, describe what is physically happening, and categorize it.',
+            'Provide a premium, highly descriptive, and catchy 1 to 2 word caption that matches what you see in the video.',
             '',
             'Choose ONE category from this list:',
             JSON.stringify(categories),
-            'And don\'t use the below for caption:',
+            'Do NOT use any of these exact captions (blacklist):',
             JSON.stringify(blacklist),
-            'ONLY OUTPUT THE JSON, NOT ANYTHING ELSE. JUST THE JSON FORMAT SPECIFIED BELOW.',
-            'Return ONLY strict JSON in this format:',
+            'Do NOT use generic placeholders, file names, or numbering in your caption.',
+            '',
+            'Return ONLY a strict JSON object in this format (no markdown code blocks, no extra text):',
             '{',
-            '  "category":"chosen category",',
-            '  "caption":"short 2 word caption for video, for youtube shorts"',
+            '  "category": "chosen category",',
+            '  "caption": "premium description"' +
             '}'
         ].join('\n');
 
-        console.log(`[captionGenerator] Sending clip ${path.basename(filePath)} (${duration.toFixed(1)}s) to ${model}...`);
+        console.log(`[captionGenerator] Sending clip ${path.basename(filePath)} (${duration.toFixed(1)}s) to multimodal vision model ${model}...`);
         const response = await ai.models.generateContent({
             model: model,
             contents: [
@@ -210,10 +213,19 @@ async function generateCaptionForClip(filePath, existingCaptions = []) {
             caption = words.slice(0, 2).join(' ');
         }
         
-        // Remove common generic fallback values that look bad or are just punctuation/placeholders (e.g. "...")
+        // Strict generic word filtering to prevent garbage output
         const lower = caption.toLowerCase();
         const alphanumeric = caption.replace(/[^a-zA-Z0-9]/g, '').trim();
-        if (!caption || words.length === 0 || !alphanumeric || lower.includes('clip') || lower.includes('video') || lower.match(/clip\s*\d*/i)) {
+        if (
+            !caption || 
+            words.length === 0 || 
+            !alphanumeric || 
+            lower.includes('clip') || 
+            lower.includes('video') || 
+            lower.includes('short') || 
+            /clip\s*\d*/i.test(lower) || 
+            /short\s*\d*/i.test(lower)
+        ) {
             return getRandomCaption();
         }
 
