@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,68 +10,6 @@ if ! command -v npm >/dev/null 2>&1; then
   echo "Error: npm is required but was not found in PATH."
   exit 1
 fi
-
-PYTHON_BIN=""
-PYTHON_ARG=""
-
-detect_python() {
-  if command -v python3 >/dev/null 2>&1; then
-    PYTHON_BIN="python3"
-    return
-  fi
-  if command -v python >/dev/null 2>&1; then
-    PYTHON_BIN="python"
-    return
-  fi
-  if command -v py >/dev/null 2>&1; then
-    PYTHON_BIN="py"
-    PYTHON_ARG="-3"
-    return
-  fi
-}
-
-run_python() {
-  if [[ -n "$PYTHON_ARG" ]]; then
-    "$PYTHON_BIN" "$PYTHON_ARG" "$@"
-  else
-    "$PYTHON_BIN" "$@"
-  fi
-}
-
-ensure_ytdlp() {
-  detect_python
-
-  if [[ -z "$PYTHON_BIN" ]]; then
-    echo "Warning: Python not found. yt-dlp may fail during processing."
-    return
-  fi
-
-  if run_python -m yt_dlp --version >/dev/null 2>&1; then
-    return
-  fi
-
-  echo "Installing yt-dlp into $PYTHON_BIN environment..."
-  if run_python -m pip install --upgrade yt-dlp 2>&1 | grep -q "externally-managed-environment"; then
-    echo "Note: PEP 668 restriction detected. Attempting with --break-system-packages..."
-    if run_python -m pip install --upgrade --break-system-packages yt-dlp >/dev/null 2>&1; then
-      echo "yt-dlp installed (with system override)."
-    else
-      echo "Warning: Could not auto-install yt-dlp (PEP 668 environment restriction)."
-      echo "To install: $PYTHON_BIN -m pip install --break-system-packages yt-dlp"
-    fi
-  elif run_python -m pip install --upgrade yt-dlp >/dev/null 2>&1; then
-    echo "yt-dlp installed."
-  else
-    echo "Warning: Could not auto-install yt-dlp."
-    echo "Run manually: $PYTHON_BIN -m pip install --upgrade yt-dlp"
-  fi
-}
-
-ensure_ffmpeg() {
-  if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
-    echo "Warning: ffmpeg/ffprobe not found in PATH. Video processing will fail until installed."
-  fi
-}
 
 install_deps_if_needed() {
   local dir="$1"
@@ -85,8 +23,6 @@ install_deps_if_needed() {
 
 install_deps_if_needed "$SERVER_DIR" "server"
 install_deps_if_needed "$CLIENT_DIR" "client"
-ensure_ytdlp
-ensure_ffmpeg
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Warning: server/.env not found. Create it before running the backend."
