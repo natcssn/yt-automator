@@ -35,8 +35,12 @@ YT Made EZ/
 # ── Temp / Buffer folders ─────────────────────────────────────────────────────
 server/buffer/
 server/reels_downloads/
+server/browser_profile/
+server/autopilot_buffer*/
 buffer/
 reels_downloads/
+browser_profile/
+autopilot_buffer*/
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
