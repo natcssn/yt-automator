@@ -104,11 +104,12 @@ async function uploadToYouTube(videoFilePath, metadata, tokens) {
             defaultAudioLanguage,
         },
         status: {
-            privacyStatus,
+            privacyStatus: metadata.publishAt ? 'private' : privacyStatus,
             selfDeclaredMadeForKids: madeForKids === true || madeForKids === 'true',
             license,
             embeddable: embeddable === true || embeddable === 'true',
             publicStatsViewable: publicStatsViewable === true || publicStatsViewable === 'true',
+            ...(metadata.publishAt ? { publishAt: new Date(metadata.publishAt).toISOString() } : {})
         },
     };
 

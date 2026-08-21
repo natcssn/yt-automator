@@ -5,8 +5,10 @@ import axios from 'axios';
 import {
     FaTimes, FaRobot, FaPlay, FaStop, FaInstagram, FaDownload,
     FaShareAlt, FaCheckCircle, FaMagic, FaYoutube, FaLock, FaFilm,
-    FaPalette, FaChevronDown, FaChevronUp, FaSlidersH, FaRandom
+    FaPalette, FaChevronDown, FaChevronUp, FaSlidersH, FaRandom,
+    FaClock, FaExternalLinkAlt, FaGoogle
 } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 
 const API_URL = import.meta.env.DEV ? 'http://localhost:5000/api' : '/api';
 
@@ -55,13 +57,14 @@ const BADGE_PRESETS = {
 };
 
 export default function AutoPilotWizard({ onClose }) {
+    const { user, isAuthenticated, tokens, login: loginGoogle } = useAuth();
+
     const [prompt, setPrompt] = useState('Cute kittens and playful fluffy cats');
     const [mode, setMode] = useState('ranking5'); // 'ranking5' | 'ranking3' | 'compile'
     const [targetVideoCount, setTargetVideoCount] = useState(1);
     const [limitTotalDuration, setLimitTotalDuration] = useState(true);
     const [trimIndividualClips, setTrimIndividualClips] = useState(true);
     const [clipTrimLimit, setClipTrimLimit] = useState(10);
-    const [autoUploadYouTube, setAutoUploadYouTube] = useState(false);
 
     // Custom Details & Colors
     const [showDetails, setShowDetails] = useState(false);
@@ -71,6 +74,12 @@ export default function AutoPilotWizard({ onClose }) {
     const [randomizeWordColors, setRandomizeWordColors] = useState(false);
     const [badgeTheme, setBadgeTheme] = useState('default');
     const [badgeColors, setBadgeColors] = useState(['#FFFF00', '#00FFFF', '#FF3333', '#00FF66', '#C11C84']);
+
+    // YouTube & Instagram Publishing
+    const [autoUploadYouTube, setAutoUploadYouTube] = useState(false);
+    const [youtubePrivacy, setYoutubePrivacy] = useState('public');
+    const [youtubeCategory, setYoutubeCategory] = useState('22');
+    const [youtubeScheduleIntervalHours, setYoutubeScheduleIntervalHours] = useState(0);
 
     // Live state from backend
     const [managerState, setManagerState] = useState({
@@ -155,6 +164,10 @@ export default function AutoPilotWizard({ onClose }) {
                 trimIndividualClips,
                 clipTrimLimit: Number(clipTrimLimit),
                 autoUploadYouTube,
+                youtubeTokens: autoUploadYouTube ? tokens : null,
+                youtubePrivacy,
+                youtubeCategory,
+                youtubeScheduleIntervalHours: Number(youtubeScheduleIntervalHours),
                 customTitle: customTitle.trim(),
                 titleColor1,
                 titleColor2,
@@ -187,7 +200,6 @@ export default function AutoPilotWizard({ onClose }) {
 
     const isRunning = managerState.status === 'running';
     const isWaitingLogin = managerState.status === 'waiting_login';
-    const requiredClips = mode === 'ranking3' ? 3 : 5;
 
     // Simulated title preview
     const previewTitle = customTitle.trim() || (prompt.toLowerCase().includes('cat') ? 'KITTY MOMENTS' : prompt.toLowerCase().includes('dog') ? 'PUPPY MOMENTS' : 'TOP MOMENTS');
@@ -232,7 +244,7 @@ export default function AutoPilotWizard({ onClose }) {
                             </span>
                         </h2>
                         <p className="modal-subtitle" style={{ marginBottom: 0 }}>
-                            Autonomous real-time reel hunter, Gemini 2.5 Flash vision curator & batch ranking producer.
+                            Autonomous real-time reel hunter, Gemini 2.5 Flash vision curator &amp; batch ranking producer.
                         </p>
                     </div>
 
@@ -406,7 +418,7 @@ export default function AutoPilotWizard({ onClose }) {
                                     </div>
 
                                     {/* Clip Constraints & Trimming */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                                         <div className="form-group">
                                             <label className="form-label">Max Clip Trim (Seconds)</label>
                                             <input
@@ -427,13 +439,124 @@ export default function AutoPilotWizard({ onClose }) {
                                                     onChange={(e) => setLimitTotalDuration(e.target.checked)}
                                                     style={{ width: 16, height: 16, accentColor: '#FFD700' }}
                                                 />
-                                                Strict 57s Total Duration (Shorts & Reels Safe)
+                                                Strict 57s Total Duration (Shorts &amp; Reels Safe)
                                             </label>
                                         </div>
                                     </div>
 
+                                    {/* ── 🚀 Publishing Channels (YouTube & Instagram) ───────────── */}
+                                    <div style={{ marginTop: 14, marginBottom: 16 }}>
+                                        <label className="form-label" style={{ color: '#FFD700', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                                            <FaYoutube /> Publishing &amp; Auto-Upload Channels
+                                        </label>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                                            {/* YouTube Auto-Upload Card */}
+                                            <div style={{
+                                                background: autoUploadYouTube ? 'rgba(87, 242, 135, 0.08)' : 'rgba(255,255,255,0.02)',
+                                                border: `1px solid ${autoUploadYouTube ? '#57F287' : 'rgba(255,255,255,0.08)'}`,
+                                                borderRadius: 14,
+                                                padding: 14,
+                                                transition: 'all 0.25s ease',
+                                                boxShadow: autoUploadYouTube ? '0 0 16px rgba(87, 242, 135, 0.25)' : 'none'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                    <span style={{ fontSize: 13.5, fontWeight: 800, color: autoUploadYouTube ? '#57F287' : '#ffffff', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <FaYoutube style={{ color: '#FF0000', fontSize: 16 }} /> Auto-Upload YouTube
+                                                    </span>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={autoUploadYouTube}
+                                                        onChange={(e) => setAutoUploadYouTube(e.target.checked)}
+                                                        style={{ width: 18, height: 18, accentColor: '#57F287', cursor: 'pointer' }}
+                                                    />
+                                                </div>
+
+                                                {autoUploadYouTube && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                        style={{ marginTop: 10 }}
+                                                    >
+                                                        {isAuthenticated && user ? (
+                                                            <div style={{ fontSize: 11.5, color: '#57F287', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                                                <FaCheckCircle /> Linked: <strong>{user.name}</strong>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                onClick={loginGoogle}
+                                                                className="google-signin-btn"
+                                                                style={{ padding: '6px 12px', fontSize: 11.5, width: '100%', justifyContent: 'center', marginBottom: 8 }}
+                                                            >
+                                                                <FaGoogle style={{ color: '#4285F4' }} /> Connect Channel
+                                                            </button>
+                                                        )}
+
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                                            <div>
+                                                                <label className="form-label" style={{ fontSize: 11 }}>Schedule Gap</label>
+                                                                <select
+                                                                    className="form-select"
+                                                                    value={youtubeScheduleIntervalHours}
+                                                                    onChange={(e) => setYoutubeScheduleIntervalHours(e.target.value)}
+                                                                    style={{ fontSize: 11, padding: '4px 6px' }}
+                                                                >
+                                                                    <option value={0}>Instant Release</option>
+                                                                    <option value={1}>1 Hour Gap</option>
+                                                                    <option value={2}>2 Hours Gap</option>
+                                                                    <option value={4}>4 Hours Gap</option>
+                                                                    <option value={6}>6 Hours Gap</option>
+                                                                    <option value={12}>12 Hours Gap</option>
+                                                                    <option value={24}>24 Hours (Daily)</option>
+                                                                </select>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="form-label" style={{ fontSize: 11 }}>Privacy</label>
+                                                                <select
+                                                                    className="form-select"
+                                                                    value={youtubePrivacy}
+                                                                    onChange={(e) => setYoutubePrivacy(e.target.value)}
+                                                                    style={{ fontSize: 11, padding: '4px 6px' }}
+                                                                >
+                                                                    <option value="public">Public</option>
+                                                                    <option value="unlisted">Unlisted</option>
+                                                                    <option value="private">Private</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </div>
+
+                                            {/* Instagram Auto-Upload Card (Preview) */}
+                                            <div style={{
+                                                background: 'rgba(255,255,255,0.01)',
+                                                border: '1px solid rgba(225, 48, 108, 0.25)',
+                                                borderRadius: 14,
+                                                padding: 14,
+                                                opacity: 0.7,
+                                                position: 'relative'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                                    <span style={{ fontSize: 13.5, fontWeight: 800, color: '#E1306C', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <FaInstagram style={{ fontSize: 16 }} /> Auto-Upload Instagram
+                                                    </span>
+                                                    <span style={{ fontSize: 9.5, background: 'rgba(225, 48, 108, 0.2)', color: '#E1306C', padding: '2px 6px', borderRadius: 8, fontWeight: 700 }}>
+                                                        PREVIEW
+                                                    </span>
+                                                </div>
+                                                <p style={{ fontSize: 11, color: 'var(--text-hint)', margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                                                    Direct Instagram Graph API video publishing is in development. Connect Instagram above to hunt reels.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     {/* ── Expandable [Add Details & Custom Styles] ────────────────── */}
-                                    <div style={{ marginTop: 18, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 14 }}>
+                                    <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 14 }}>
                                         <button
                                             type="button"
                                             onClick={() => setShowDetails(!showDetails)}
@@ -698,6 +821,36 @@ export default function AutoPilotWizard({ onClose }) {
                                                     </span>
                                                 ))}
                                             </div>
+
+                                            {vid.youtubeUrl && (
+                                                <div style={{ marginBottom: 10 }}>
+                                                    <a
+                                                        href={vid.youtubeUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        style={{
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: 6,
+                                                            background: 'rgba(255,0,0,0.15)',
+                                                            border: '1px solid rgba(255,0,0,0.4)',
+                                                            color: '#FF4D4D',
+                                                            borderRadius: 12,
+                                                            padding: '4px 10px',
+                                                            fontSize: 11.5,
+                                                            textDecoration: 'none',
+                                                            fontWeight: 700
+                                                        }}
+                                                    >
+                                                        <FaYoutube /> Watch on YouTube <FaExternalLinkAlt size={9} />
+                                                    </a>
+                                                    {vid.publishAt && (
+                                                        <span style={{ fontSize: 10.5, color: '#57F287', marginLeft: 8 }}>
+                                                            <FaClock /> Scheduled: {new Date(vid.publishAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>

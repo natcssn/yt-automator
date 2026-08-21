@@ -10,6 +10,7 @@ const {
     combineBuffer
 } = require('./combine');
 const { uploadToFilebin } = require('./filebinUpload');
+const { uploadToYouTube } = require('./youtubeUpload');
 
 class AutoPilotManager {
     constructor() {
@@ -299,6 +300,40 @@ class AutoPilotManager {
                     filebinUrl: filebinUrl,
                     createdAt: new Date().toISOString()
                 };
+
+                // Automatic YouTube Upload & Scheduling (if enabled)
+                if (this.config.autoUploadYouTube && this.config.youtubeTokens) {
+                    try {
+                        this.log(`📤 Auto-uploading Video #${currentVideoNum} to YouTube...`, 'radar');
+                        
+                        let publishAt = null;
+                        const scheduleIntervalHours = Number(this.config.youtubeScheduleIntervalHours) || 0;
+                        if (scheduleIntervalHours > 0) {
+                            const delayMs = (currentVideoNum - 1) * scheduleIntervalHours * 3600 * 1000;
+                            publishAt = new Date(Date.now() + Math.max(delayMs, 10 * 60 * 1000)).toISOString();
+                            this.log(`📅 Video #${currentVideoNum} scheduled for release at: ${new Date(publishAt).toLocaleString()}`, 'info');
+                        }
+
+                        const ytMetadata = {
+                            title: `${titleText} #${currentVideoNum} #Shorts`,
+                            description: `Best moments curated automatically by YT Automation Studio.\n\n#Shorts #${this.config.prompt.replace(/\s+/g, '')} #viral #ranking`,
+                            tags: ['shorts', 'viral', 'ranking', this.config.prompt, titleText],
+                            privacyStatus: this.config.youtubePrivacy || 'public',
+                            categoryId: this.config.youtubeCategory || '22',
+                            publishAt: publishAt
+                        };
+
+                        const ytResult = await uploadToYouTube(outputPath, ytMetadata, this.config.youtubeTokens);
+                        if (ytResult && ytResult.id) {
+                            videoRecord.youtubeId = ytResult.id;
+                            videoRecord.youtubeUrl = `https://youtu.be/${ytResult.id}`;
+                            videoRecord.publishAt = publishAt;
+                            this.log(`🎉 Successfully published to YouTube! Link: https://youtu.be/${ytResult.id}`, 'success');
+                        }
+                    } catch (ytErr) {
+                        this.log(`⚠️ YouTube upload error for Video #${currentVideoNum}: ${ytErr.message}`, 'warn');
+                    }
+                }
 
                 this.completedVideos.unshift(videoRecord);
                 this.currentJob.videosCompleted++;
