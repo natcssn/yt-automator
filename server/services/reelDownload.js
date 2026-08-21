@@ -170,8 +170,9 @@ function downloadInstagramReel(url, bufferFolder, targetName = null) {
                 fs.rmSync(uniqueReelsDir, { recursive: true, force: true });
             } catch {}
             
-            console.log(`✅ Download complete → ${path.join(bufferFolder, finalName)}`);
-            resolve();
+            const savedPath = path.join(bufferFolder, finalName);
+            console.log(`✅ Download complete → ${savedPath}`);
+            resolve({ filePath: savedPath, fileName: finalName });
         } catch (err) {
             try {
                 fs.rmSync(uniqueReelsDir, { recursive: true, force: true });
@@ -181,4 +182,9 @@ function downloadInstagramReel(url, bufferFolder, targetName = null) {
     });
 }
 
-module.exports = { downloadInstagramReel, getNextBufferFolder, BUFFER_DIR };
+module.exports = {
+    downloadInstagramReel,
+    downloadReel: downloadInstagramReel,
+    getNextBufferFolder,
+    BUFFER_DIR
+};
