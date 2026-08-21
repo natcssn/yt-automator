@@ -142,13 +142,12 @@ class AutoPilotManager {
         const requiredClips = this.config.mode === 'ranking3' ? 3 : 5;
 
         // Step 1: Check login status
-        this.log('🛡️ Verifying Instagram credentials...', 'info');
+        this.log('🛡️ Verifying hunter channels & credentials...', 'info');
         const isLoggedIn = await autoPilotBrowser.checkLoginStatus();
-        if (!isLoggedIn) {
-            this.log('⚠️ Instagram login required. Please click "Log into Instagram" to connect.', 'warn');
-            this.status = 'waiting_login';
-            this.emitState();
-            return;
+        if (isLoggedIn) {
+            this.log('✅ Instagram session authenticated.', 'success');
+        } else {
+            this.log('🌐 Multi-stream hunter active (Instagram + YouTube Shorts discovery).', 'info');
         }
 
         while (!this.isCancelled && this.currentJob.videosCompleted < this.config.targetVideoCount) {
@@ -255,40 +254,19 @@ class AutoPilotManager {
             }
 
             try {
-                if (this.config.mode === 'ranking3') {
-                    await combineBuffer3(
-                        videoBufferDir,
-                        outputPath,
-                        titleText,
-                        captionsList,
-                        'both',
-                        'alpha',
-                        this.config.limitTotalDuration,
-                        this.config.trimIndividualClips,
-                        this.config.clipTrimLimit
-                    );
-                } else if (this.config.mode === 'compile') {
-                    await combineBuffer(
-                        videoBufferDir,
-                        outputPath,
-                        'alpha',
-                        this.config.limitTotalDuration,
-                        this.config.trimIndividualClips,
-                        this.config.clipTrimLimit
-                    );
+                if (this.config.mode === 'compile') {
+                    await combineBuffer(videoBufferDir, {
+                        outputFile: outputPath,
+                        sortMode: 'provided',
+                        cleanup: true
+                    });
                 } else {
-                    // Default: 5-clip ranking
-                    await combineAndOverlaySinglePass(
-                        videoBufferDir,
-                        outputPath,
-                        titleText,
-                        captionsList,
-                        'both',
-                        'alpha',
-                        this.config.limitTotalDuration,
-                        this.config.trimIndividualClips,
-                        this.config.clipTrimLimit
-                    );
+                    // Ranking mode (3-clip or 5-clip with animated scores, titles & captions)
+                    await combineAndOverlaySinglePass(videoBufferDir, titleText, captionsList, {
+                        outputFile: outputPath,
+                        sortMode: 'provided',
+                        cleanup: true
+                    });
                 }
 
                 this.log(`🎉 Compilation Complete: ${outputName}!`, 'success');

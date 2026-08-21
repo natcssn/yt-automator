@@ -241,6 +241,47 @@ class AutoPilotBrowser {
             }
         }
 
+        // Universal Stream: Search YouTube Shorts for guaranteed fresh candidate 9:16 reels
+        if (collectedUrls.size < targetCount && !(isCancelledRef && isCancelledRef()) && this.page && !this.page.isClosed()) {
+            try {
+                const cleanQuery = promptText.replace(/[^a-zA-Z0-9 ]/g, ' ').trim();
+                const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanQuery + ' shorts')}`;
+                if (onLog) onLog(`🔍 AutoPilot scanning Shorts stream for "${cleanQuery}"...`);
+                await this.page.goto(ytSearchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                await this.page.waitForTimeout(3000);
+
+                let scrollAttempts = 0;
+                while (scrollAttempts < 8 && collectedUrls.size < targetCount) {
+                    if ((isCancelledRef && isCancelledRef()) || !this.page || this.page.isClosed()) break;
+
+                    const shortsHrefs = await this.page.$$eval('a[href*="/shorts/"]', anchors =>
+                        anchors.map(a => a.href)
+                    );
+
+                    for (const rawHref of shortsHrefs) {
+                        const m = rawHref.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+                        if (m) {
+                            const canonicalUrl = `https://www.youtube.com/shorts/${m[1]}`;
+                            if (!collectedUrls.has(canonicalUrl)) {
+                                collectedUrls.add(canonicalUrl);
+                                if (onReelDiscovered) {
+                                    await onReelDiscovered(canonicalUrl);
+                                }
+                                if (collectedUrls.size >= targetCount) break;
+                            }
+                        }
+                    }
+
+                    if (!this.page || this.page.isClosed()) break;
+                    await this.page.mouse.wheel(0, 1000);
+                    await this.page.waitForTimeout(1800);
+                    scrollAttempts++;
+                }
+            } catch (err) {
+                if (onLog && !this.isCancelled) onLog(`⚠️ Warning on Shorts stream: ${err.message}`);
+            }
+        }
+
         if (onLog) onLog(`✅ AutoPilot collected ${collectedUrls.size} candidate reel links for evaluation.`);
         return Array.from(collectedUrls);
     }

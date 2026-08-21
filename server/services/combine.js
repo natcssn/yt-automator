@@ -179,9 +179,9 @@ function sortClips(meta, sortMode = 'filename') {
  * @returns {Promise<{names: string[], timestamps: number[], outputFile: string}>}
  */
 async function combineBuffer(folderName, options = {}) {
-    const { clipMeta, sortMode = 'filename', cleanup = true } = options;
-    const bufferFolder = path.join(BUFFER_DIR, folderName);
-    const outputFile = path.join(WRITABLE_ROOT, `combined_${folderName}.mp4`);
+    const { clipMeta, sortMode = 'alpha', cleanup = true } = options;
+    const bufferFolder = path.isAbsolute(folderName) ? folderName : path.join(BUFFER_DIR, folderName);
+    const outputFile = options.outputFile || path.join(WRITABLE_ROOT, `combined_${path.basename(folderName)}.mp4`);
 
     let probes = clipMeta;
     if (!probes) {
@@ -304,8 +304,8 @@ async function combineBuffer(folderName, options = {}) {
  */
 async function combineBuffer3(folderName, options = {}) {
     const { clipMeta, sortMode = 'filename', cleanup = true } = options;
-    const bufferFolder = path.join(BUFFER_DIR, folderName);
-    const outputFile = path.join(WRITABLE_ROOT, `combined_${folderName}.mp4`);
+    const bufferFolder = path.isAbsolute(folderName) ? folderName : path.join(BUFFER_DIR, folderName);
+    const outputFile = options.outputFile || path.join(WRITABLE_ROOT, `combined_${path.basename(folderName)}.mp4`);
 
     let probes = clipMeta;
     if (!probes) {
@@ -374,8 +374,7 @@ async function combineBuffer3(folderName, options = {}) {
             concatParts.push(`[v${i}][a${i}]`);
         }
 
-        filterParts.push(`${concatParts.join('')}concat=n=3:v=1:a=1[outv][outa]`);
-        const filterComplex = filterParts.join(';');
+        const filterComplex = `${filterParts.join(';')};${concatParts.join('')}concat=n=${ordered.length}:v=1:a=1[outv][outa]`;
 
         const ffmpegArgs = [
             ...inputArgs,
@@ -416,9 +415,9 @@ async function combineBuffer3(folderName, options = {}) {
  */
 async function combineAndOverlaySinglePass(folderName, videoTitle, captions, options = {}) {
     const { clipMeta, sortMode = 'provided', cleanup = true } = options;
-    const bufferFolder = path.join(BUFFER_DIR, folderName);
+    const bufferFolder = path.isAbsolute(folderName) ? folderName : path.join(BUFFER_DIR, folderName);
     const now = Date.now();
-    const outputFile = path.join(WRITABLE_ROOT, `output_${now}.mp4`);
+    const outputFile = options.outputFile || path.join(WRITABLE_ROOT, `output_${now}.mp4`);
 
     const numClips = captions.length; // 3 or 5
 
