@@ -195,6 +195,7 @@ class AutoPilotBrowser {
                     }
 
                     // Humanized scroll
+                    if (!this.page || this.page.isClosed()) break;
                     const scrollDistance = Math.floor(Math.random() * 600) + 700;
                     await this.page.mouse.wheel(0, scrollDistance);
                     const pauseTime = Math.floor(Math.random() * 1500) + 1500;
@@ -202,12 +203,12 @@ class AutoPilotBrowser {
                     scrollAttempts++;
                 }
             } catch (err) {
-                if (onLog) onLog(`⚠️ Warning traversing #${tag}: ${err.message}`);
+                if (onLog && !this.isCancelled) onLog(`⚠️ Warning traversing #${tag}: ${err.message}`);
             }
         }
 
         // Fallback: Also explore general reels tab if not enough
-        if (collectedUrls.size < targetCount && !(isCancelledRef && isCancelledRef())) {
+        if (collectedUrls.size < targetCount && !(isCancelledRef && isCancelledRef()) && this.page && !this.page.isClosed()) {
             try {
                 if (onLog) onLog('🌐 Browsing main Reels stream for additional candidates...');
                 await this.page.goto('https://www.instagram.com/reels/', { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -215,7 +216,7 @@ class AutoPilotBrowser {
 
                 let scrollAttempts = 0;
                 while (scrollAttempts < 8 && collectedUrls.size < targetCount) {
-                    if (isCancelledRef && isCancelledRef()) break;
+                    if (isCancelledRef && isCancelledRef() || !this.page || this.page.isClosed()) break;
 
                     const url = this.page.url();
                     const m = url.match(/https:\/\/www\.instagram\.com\/reels\/([a-zA-Z0-9_-]+)/);
@@ -230,12 +231,13 @@ class AutoPilotBrowser {
                     }
 
                     // Scroll to next reel (Down arrow or PageDown)
+                    if (!this.page || this.page.isClosed()) break;
                     await this.page.keyboard.press('ArrowDown');
                     await this.page.waitForTimeout(Math.floor(Math.random() * 1500) + 2000);
                     scrollAttempts++;
                 }
             } catch (err) {
-                if (onLog) onLog(`⚠️ Warning on reels feed: ${err.message}`);
+                if (onLog && !this.isCancelled) onLog(`⚠️ Warning on reels feed: ${err.message}`);
             }
         }
 

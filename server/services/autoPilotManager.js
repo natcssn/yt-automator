@@ -172,7 +172,7 @@ class AutoPilotManager {
                 this.log(`📥 Downloading candidate reel: ${reelUrl}...`, 'info');
 
                 try {
-                    const dlResult = await downloadReel(reelUrl, videoBufferDir, (pct) => {});
+                    const dlResult = await downloadReel(reelUrl, videoBufferDir);
                     if (!dlResult || !dlResult.filePath || !fs.existsSync(dlResult.filePath)) {
                         this.log(`⚠️ Skipped: Failed to extract media from ${reelUrl}`, 'warn');
                         return;

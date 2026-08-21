@@ -252,14 +252,26 @@ export default function AutoPilotWizard({ onClose }) {
                                 <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto 20px' }}>
                                     To bypass Instagram's public scraper limits and discover high-resolution reels, connect your session once.
                                 </p>
-                                <button
-                                    className="btn-primary"
-                                    onClick={handleInteractiveLogin}
-                                    disabled={loginLoading}
-                                    style={{ background: 'linear-gradient(135deg, #E1306C, #C13584)' }}
-                                >
-                                    <FaInstagram /> {loginLoading ? 'Opening Browser Window...' : 'Log into Instagram (One-Time)'}
-                                </button>
+                                <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                                    <button
+                                        type="button"
+                                        className="btn-secondary"
+                                        onClick={() => {
+                                            handleStop();
+                                            setManagerState(s => ({ ...s, status: 'idle' }));
+                                        }}
+                                    >
+                                        ← Back to Configuration
+                                    </button>
+                                    <button
+                                        className="btn-primary"
+                                        onClick={handleInteractiveLogin}
+                                        disabled={loginLoading}
+                                        style={{ background: 'linear-gradient(135deg, #E1306C, #C13584)' }}
+                                    >
+                                        <FaInstagram /> {loginLoading ? 'Opening Browser Window...' : 'Log into Instagram (One-Time)'}
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             /* Configuration Form */

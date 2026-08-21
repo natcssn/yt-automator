@@ -124,6 +124,9 @@ function normalizeDownloadUrl(rawUrl) {
  * @returns {Promise<void>}
  */
 function downloadInstagramReel(url, bufferFolder, targetName = null) {
+    if (typeof targetName !== 'string') {
+        targetName = null;
+    }
     return new Promise(async (resolve, reject) => {
         let reelUrl;
 
