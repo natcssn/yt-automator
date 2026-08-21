@@ -4,11 +4,17 @@ import RankingWizard from '../components/RankingWizard'
 import Ranking3Wizard from '../components/Ranking3Wizard'
 import CompileWizard from '../components/CompileWizard'
 import DiscordSetup from '../components/DiscordSetup'
+import AutoPilotWizard from '../components/AutoPilotWizard'
 import { useAuth } from '../context/AuthContext'
 import { FaYoutube, FaSave, FaGoogle, FaMagic } from 'react-icons/fa'
 import axios from 'axios'
 
 const FEATURES = [
+    {
+        icon: '✨', label: 'Autonomous AI AutoPilot Mode',
+        desc: 'Autonomous Instagram reel hunter. Gemini 2.5 Flash vision curates, trims, and generates batches of ranking videos automatically.',
+        iconClass: 'card-icon-gold', active: true, id: 'autopilot',
+    },
     {
         icon: '🏆', label: 'Create 5 Clip Ranking Video',
         desc: 'Combine 5 clips with animated rankings, title overlays, and AI captions. Upload straight to YouTube.',
@@ -406,6 +412,9 @@ export default function Home() {
 
             {/* Wizard modals */}
             <AnimatePresence>
+                {activeWizard === 'autopilot' && (
+                    <AutoPilotWizard onClose={() => setActiveWizard(null)} />
+                )}
                 {activeWizard === 'ranking5' && (
                     <RankingWizard onClose={() => setActiveWizard(null)} ytDefaults={ytDefaults} />
                 )}

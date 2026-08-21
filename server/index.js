@@ -11,6 +11,8 @@ require('dotenv').config({
 const videoRoutes = require('./routes/video');
 const authRoutes = require('./routes/auth');
 const discordRoutes = require('./routes/discord');
+const autopilotRoutes = require('./routes/autopilot');
+const autoPilotManager = require('./services/autoPilotManager');
 const { purgeAllVideos } = require('./services/cleanup');
 const { runStartupChecks } = require('./services/preflight');
 
@@ -23,6 +25,9 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
   },
 });
+
+// Link socket to AutoPilot manager
+autoPilotManager.setSocketIO(io);
 
 // Make io accessible in routes
 app.set('io', io);
@@ -38,6 +43,7 @@ app.use(express.json());
 app.use('/api/video', videoRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/discord', discordRoutes);
+app.use('/api/autopilot', autopilotRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

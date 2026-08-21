@@ -519,7 +519,8 @@ async function combineAndOverlaySinglePass(folderName, videoTitle, captions, opt
         const line1 = titleWords.slice(0, half).join(' ');
         const line2 = titleWords.slice(half).join(' ');
 
-        const titleSize = 82;
+        const maxLineLen = Math.max(line1.length, line2.length, 10);
+        const titleSize = Math.max(52, Math.min(84, Math.floor(1020 / maxLineLen)));
         if (line1) {
             drawtexts.push(
                 `drawtext=fontfile='${fontPath}':text='${escapeText(line1)}':enable='between(t,${tStart},${tEnd})'` +
@@ -529,20 +530,20 @@ async function combineAndOverlaySinglePass(folderName, videoTitle, captions, opt
         if (line2) {
             drawtexts.push(
                 `drawtext=fontfile='${fontPath}':text='${escapeText(line2)}':enable='between(t,${tStart},${tEnd})'` +
-                `:x=(w-text_w)/2:y=${130 + titleSize + 12}:fontsize=${titleSize + 8}:borderw=${border}:bordercolor=black:fontcolor=#C11C84`
+                `:x=(w-text_w)/2:y=${130 + titleSize + 12}:fontsize=${titleSize + 6}:borderw=${border}:bordercolor=black:fontcolor=#C11C84`
             );
         }
     }
 
     // Subtitle variables based on length
-    let captionSize, numColors, yPositions;
+    let baseCaptionSize, numColors, yPositions;
     if (numClips === 3) {
-        captionSize = 62;
+        baseCaptionSize = 62;
         numColors = ['yellow', 'cyan', 'red'];
         yPositions = [650, 980, 1310];
     } else {
         // Default to 5-clip
-        captionSize = 58;
+        baseCaptionSize = 58;
         numColors = ['yellow', 'cyan', 'red', 'green', '#C11C84'];
         yPositions = [535, 790, 1030, 1280, 1550];
     }
@@ -552,6 +553,8 @@ async function combineAndOverlaySinglePass(folderName, videoTitle, captions, opt
         const label = p + 1;
         const tReveal = timestamps[clipIndex] || 0;
         const color = numColors[p % numColors.length];
+        const captionText = captions[clipIndex] ? String(captions[clipIndex]).trim() : '';
+        const captionSize = Math.max(44, Math.min(baseCaptionSize, Math.floor(920 / Math.max(captionText.length + 4, 12))));
 
         // Number label (always visible)
         drawtexts.push(
@@ -560,9 +563,9 @@ async function combineAndOverlaySinglePass(folderName, videoTitle, captions, opt
         );
 
         // Caption text (revealed at tReveal)
-        if (captions[clipIndex]) {
+        if (captionText) {
             drawtexts.push(
-                `drawtext=fontfile='${fontPath}':text='${escapeText(captions[clipIndex])}':enable='between(t,${tReveal},${tEnd})'` +
+                `drawtext=fontfile='${fontPath}':text='${escapeText(captionText)}':enable='between(t,${tReveal},${tEnd})'` +
                 `:x=130:y=${yPositions[p]}:fontsize=${captionSize}:borderw=${border}:bordercolor=black:fontcolor=white`
             );
         }

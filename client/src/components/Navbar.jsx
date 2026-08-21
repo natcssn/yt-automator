@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
-import { FaGoogle, FaCog } from 'react-icons/fa'
+import { FaGoogle, FaCog, FaMagic } from 'react-icons/fa'
 import DesktopSettings from './DesktopSettings'
+import AutoPilotWizard from './AutoPilotWizard'
 
 export default function Navbar() {
     const { user, isAuthenticated, logout, login, appUser, logoutFromApp } = useAuth()
     const [showSettings, setShowSettings] = useState(false)
+    const [showAutoPilot, setShowAutoPilot] = useState(false)
     const isElectron = typeof window !== 'undefined' && !!window.electronAPI
 
     return (
@@ -17,7 +19,18 @@ export default function Navbar() {
                     <span>YT <span style={{ color: 'var(--red)' }}>Studio</span></span>
                 </a>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    {/* Golden AutoPilot AI Launcher */}
+                    <motion.button
+                        className="btn-gold btn-gold-pulse"
+                        onClick={() => setShowAutoPilot(true)}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        style={{ padding: '6px 16px', fontSize: 13 }}
+                    >
+                        <FaMagic /> AutoPilot Agent
+                    </motion.button>
+
                     {/* Desktop settings GUI */}
                     {isElectron && (
                         <motion.button
@@ -84,6 +97,7 @@ export default function Navbar() {
 
             <AnimatePresence>
                 {showSettings && <DesktopSettings onClose={() => setShowSettings(false)} />}
+                {showAutoPilot && <AutoPilotWizard onClose={() => setShowAutoPilot(false)} />}
             </AnimatePresence>
         </>
     )

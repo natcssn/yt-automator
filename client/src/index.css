@@ -1302,3 +1302,175 @@ textarea.form-input {
 body.has-titlebar {
   padding-top: 38px;
 }
+
+/* ── Luxury Gold AutoPilot Theme ─────────────────────────────────────────── */
+.btn-gold {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+  color: #0b0b10;
+  font-weight: 800;
+  font-size: 14.5px;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(255, 215, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.btn-gold:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 28px rgba(255, 215, 0, 0.7), 0 6px 16px rgba(0, 0, 0, 0.4);
+  filter: brightness(1.08);
+}
+
+.btn-gold-pulse {
+  animation: gold-pulse 2.2s infinite ease-in-out;
+}
+
+@keyframes gold-pulse {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(255, 215, 0, 0.85), 0 0 8px rgba(255, 255, 255, 0.6);
+  }
+}
+
+.card-icon-gold {
+  background: rgba(255, 215, 0, 0.15);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  color: #FFD700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+/* ── AutoPilot Radar & Terminal ─────────────────────────────────────────── */
+.radar-container {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.12) 0%, rgba(17, 17, 24, 0.8) 70%);
+  border: 2px solid rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 24px rgba(255, 215, 0, 0.25);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.radar-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 215, 0, 0.4) 60deg, transparent 90deg);
+  animation: radar-spin 2s linear infinite;
+}
+
+@keyframes radar-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.radar-blip {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #FFD700;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #FFD700;
+  animation: blip-fade 1.5s ease-out infinite;
+}
+
+@keyframes blip-fade {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* ── Cyberpunk Agent Terminal ───────────────────────────────────────────── */
+.agent-terminal {
+  background: rgba(9, 9, 14, 0.95);
+  border: 1px solid rgba(255, 215, 0, 0.25);
+  border-radius: 14px;
+  padding: 16px;
+  max-height: 230px;
+  overflow-y: auto;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace, Consolas;
+  font-size: 12.5px;
+  line-height: 1.6;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.7);
+}
+
+.terminal-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 5px;
+  word-break: break-all;
+}
+
+.terminal-time {
+  color: var(--text-hint);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.terminal-tag-info { color: #58a6ff; }
+.terminal-tag-success { color: #57F287; font-weight: 700; }
+.terminal-tag-warn { color: #FFA500; }
+.terminal-tag-error { color: #EA4335; font-weight: 700; }
+.terminal-tag-radar { color: #FFD700; font-weight: 700; }
+
+/* ── Prompt Preset Chips ────────────────────────────────────────────────── */
+.prompt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.prompt-chip {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.prompt-chip:hover {
+  background: rgba(255, 215, 0, 0.12);
+  border-color: rgba(255, 215, 0, 0.4);
+  color: #FFD700;
+  transform: translateY(-1px);
+}
+
+/* ── Video Shelf Gallery ────────────────────────────────────────────────── */
+.video-shelf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.video-shelf-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.25s ease;
+}
+
+.video-shelf-card:hover {
+  border-color: rgba(255, 215, 0, 0.6);
+  box-shadow: 0 8px 30px rgba(255, 215, 0, 0.15);
+  transform: translateY(-2px);
+}
