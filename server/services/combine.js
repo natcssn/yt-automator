@@ -518,18 +518,29 @@ async function combineAndOverlaySinglePass(folderName, videoTitle, captions, opt
         const line1 = titleWords.slice(0, half).join(' ');
         const line2 = titleWords.slice(half).join(' ');
 
+        const VIBRANT_PALETTE = ['#00FFFF', '#FFD700', '#FF1493', '#00FF66', '#FF9900', '#FF3366', '#33CCFF', '#FFFF33', '#FF007F'];
+        const getRandomColor = () => VIBRANT_PALETTE[Math.floor(Math.random() * VIBRANT_PALETTE.length)];
+
+        let c1 = options.titleColor1 || 'cyan';
+        let c2 = options.titleColor2 || '#C11C84';
+        if (options.randomizeWordColors) {
+            c1 = getRandomColor();
+            c2 = getRandomColor();
+            while (c2 === c1) c2 = getRandomColor();
+        }
+
         const maxLineLen = Math.max(line1.length, line2.length, 10);
         const titleSize = Math.max(52, Math.min(84, Math.floor(1020 / maxLineLen)));
         if (line1) {
             drawtexts.push(
                 `drawtext=fontfile='${fontPath}':text='${escapeText(line1)}':enable='between(t,${tStart},${tEnd})'` +
-                `:x=(w-text_w)/2:y=130:fontsize=${titleSize}:borderw=${border}:bordercolor=black:fontcolor=cyan`
+                `:x=(w-text_w)/2:y=130:fontsize=${titleSize}:borderw=${border}:bordercolor=black:fontcolor=${c1}`
             );
         }
         if (line2) {
             drawtexts.push(
                 `drawtext=fontfile='${fontPath}':text='${escapeText(line2)}':enable='between(t,${tStart},${tEnd})'` +
-                `:x=(w-text_w)/2:y=${130 + titleSize + 12}:fontsize=${titleSize + 6}:borderw=${border}:bordercolor=black:fontcolor=#C11C84`
+                `:x=(w-text_w)/2:y=${130 + titleSize + 12}:fontsize=${titleSize + 6}:borderw=${border}:bordercolor=black:fontcolor=${c2}`
             );
         }
     }
@@ -538,12 +549,16 @@ async function combineAndOverlaySinglePass(folderName, videoTitle, captions, opt
     let baseCaptionSize, numColors, yPositions;
     if (numClips === 3) {
         baseCaptionSize = 62;
-        numColors = ['yellow', 'cyan', 'red'];
+        numColors = (options.badgeColors && Array.isArray(options.badgeColors) && options.badgeColors.length >= 3)
+            ? options.badgeColors.slice(0, 3)
+            : ['yellow', 'cyan', 'red'];
         yPositions = [650, 980, 1310];
     } else {
         // Default to 5-clip
         baseCaptionSize = 58;
-        numColors = ['yellow', 'cyan', 'red', 'green', '#C11C84'];
+        numColors = (options.badgeColors && Array.isArray(options.badgeColors) && options.badgeColors.length >= 5)
+            ? options.badgeColors.slice(0, 5)
+            : ['yellow', 'cyan', 'red', 'green', '#C11C84'];
         yPositions = [535, 790, 1030, 1280, 1550];
     }
 

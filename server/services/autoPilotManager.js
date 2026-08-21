@@ -248,7 +248,9 @@ class AutoPilotManager {
 
             // Determine Video Title
             let titleText = 'TOP MOMENTS';
-            if (this.activeCandidates[0] && this.activeCandidates[0].category) {
+            if (this.config.customTitle && this.config.customTitle.trim()) {
+                titleText = this.config.customTitle.trim().toUpperCase();
+            } else if (this.activeCandidates[0] && this.activeCandidates[0].category) {
                 const cat = this.activeCandidates[0].category.toUpperCase();
                 titleText = cat.includes('CAT') ? 'KITTY MOMENTS' : cat.includes('DOG') ? 'PUPPY MOMENTS' : `${cat} MOMENTS`;
             }
@@ -265,7 +267,11 @@ class AutoPilotManager {
                     await combineAndOverlaySinglePass(videoBufferDir, titleText, captionsList, {
                         outputFile: outputPath,
                         sortMode: 'provided',
-                        cleanup: true
+                        cleanup: true,
+                        titleColor1: this.config.titleColor1,
+                        titleColor2: this.config.titleColor2,
+                        randomizeWordColors: !!this.config.randomizeWordColors,
+                        badgeColors: this.config.badgeColors
                     });
                 }
 
