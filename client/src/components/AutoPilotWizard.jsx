@@ -58,7 +58,15 @@ const BADGE_PRESETS = {
 };
 
 export default function AutoPilotWizard({ onClose }) {
-    const { user, isAuthenticated, tokens, login: loginGoogle } = useAuth();
+    const {
+        user,
+        isAuthenticated,
+        isTokenExpired,
+        tokens,
+        login: loginGoogle,
+        getFreshTokens,
+        invalidateTokens
+    } = useAuth();
 
     // Primary Minimalist Inputs
     const [prompt, setPrompt] = useState('Cute kittens and playful fluffy cats');
@@ -160,6 +168,18 @@ export default function AutoPilotWizard({ onClose }) {
     const handleStart = async (e) => {
         if (e) e.preventDefault();
         try {
+            let activeTokens = tokens;
+            if (autoUploadYouTube) {
+                if (!activeTokens || isTokenExpired) {
+                    try {
+                        activeTokens = await getFreshTokens();
+                    } catch (loginErr) {
+                        alert('Google / YouTube sign-in was not completed. Videos will be created offline without auto-upload.');
+                        activeTokens = null;
+                    }
+                }
+            }
+
             await axios.post(`${API_URL}/autopilot/start`, {
                 prompt,
                 mode,
@@ -167,8 +187,8 @@ export default function AutoPilotWizard({ onClose }) {
                 limitTotalDuration,
                 trimIndividualClips,
                 clipTrimLimit: Number(clipTrimLimit),
-                autoUploadYouTube,
-                youtubeTokens: autoUploadYouTube ? tokens : null,
+                autoUploadYouTube: Boolean(autoUploadYouTube && activeTokens),
+                youtubeTokens: autoUploadYouTube ? activeTokens : null,
                 youtubePrivacy,
                 youtubeCategory,
                 scheduleMode,
@@ -182,7 +202,13 @@ export default function AutoPilotWizard({ onClose }) {
                 badgeColors: mode === 'ranking3' ? badgeColors.slice(0, 3) : badgeColors.slice(0, 5)
             });
         } catch (err) {
-            alert(err.response?.data?.error || err.message);
+            const errorMsg = err.response?.data?.error || err.message;
+            if (errorMsg.includes('invalid authentication') || errorMsg.includes('OAuth') || err.response?.status === 401) {
+                invalidateTokens();
+                alert('⚠️ Your Google YouTube session has expired. Please click "Connect Google / YouTube Channel" to refresh your session.');
+            } else {
+                alert(errorMsg);
+            }
         }
     };
 
@@ -207,21 +233,33 @@ export default function AutoPilotWizard({ onClose }) {
 
     // Manual single upload from shelf
     const handleSingleUpload = async (videoId) => {
-        if (!isAuthenticated || !tokens) {
-            alert('Please connect your YouTube channel first.');
-            loginGoogle();
-            return;
+        let activeTokens = tokens;
+        if (!activeTokens || isTokenExpired) {
+            try {
+                activeTokens = await getFreshTokens();
+            } catch (err) {
+                alert('Google / YouTube sign-in is required to upload to YouTube.');
+                return;
+            }
         }
+        if (!activeTokens) return;
+
         setShelfUploadingId(videoId);
         try {
             const res = await axios.post(`${API_URL}/autopilot/upload-single`, {
                 videoId,
-                tokens,
+                tokens: activeTokens,
                 options: { privacyStatus: 'public' }
             });
             alert(`🎉 Video uploaded successfully to YouTube! Link: ${res.data.youtubeUrl}`);
         } catch (err) {
-            alert(err.response?.data?.error || err.message);
+            const errorMsg = err.response?.data?.error || err.message;
+            if (errorMsg.includes('invalid authentication') || errorMsg.includes('OAuth') || err.response?.status === 401) {
+                invalidateTokens();
+                alert('⚠️ Your YouTube login credentials expired. Please click "Upload to YouTube Now" again to re-authenticate with Google.');
+            } else {
+                alert(`Upload failed: ${errorMsg}`);
+            }
         } finally {
             setShelfUploadingId(null);
         }
@@ -503,9 +541,25 @@ export default function AutoPilotWizard({ onClose }) {
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                                                     {isAuthenticated && user ? (
-                                                        <span style={{ fontSize: 12, color: '#57F287', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <div style={{ fontSize: 12, color: '#57F287', display: 'flex', alignItems: 'center', gap: 6 }}>
                                                             <FaCheckCircle /> Channel Linked: <strong>{user.name}</strong>
-                                                        </span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={loginGoogle}
+                                                                style={{ background: 'none', border: 'none', color: '#FFD700', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', marginLeft: 4 }}
+                                                            >
+                                                                (Reconnect)
+                                                            </button>
+                                                        </div>
+                                                    ) : isTokenExpired ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={loginGoogle}
+                                                            className="google-signin-btn"
+                                                            style={{ padding: '6px 12px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 6, borderColor: '#FFA500', color: '#FFA500' }}
+                                                        >
+                                                            <FaGoogle style={{ color: '#FFA500' }} /> Session Expired &mdash; Reconnect YouTube
+                                                        </button>
                                                     ) : (
                                                         <button
                                                             type="button"

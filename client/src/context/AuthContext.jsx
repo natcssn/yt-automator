@@ -8,13 +8,31 @@ const AuthContext = createContext(null)
 const AUTH_TOKENS_KEY = 'authTokens'
 const APP_USER_KEY = 'appUser'
 
+// Google OAuth access tokens expire in 3600 seconds (1 hour). We consider them valid for 50 mins.
+export const isTokenValid = (toks) => {
+    if (!toks || !toks.access_token) return false;
+    if (toks.expiresAt && Date.now() >= toks.expiresAt) return false;
+    // If token has no expiresAt (legacy token from older session), check if it has issuedAt
+    if (!toks.expiresAt && toks.issuedAt && Date.now() - toks.issuedAt >= 50 * 60 * 1000) return false;
+    // If legacy token without any timestamps, treat as expired to be safe
+    if (!toks.expiresAt && !toks.issuedAt) return false;
+    return true;
+};
+
 export function AuthProvider({ children }) {
     // Google OAuth state (for YouTube uploads)
     const [user, setUser] = useState(null)
     const [tokens, setTokens] = useState(() => {
         try {
             const raw = localStorage.getItem(AUTH_TOKENS_KEY)
-            return raw ? JSON.parse(raw) : null
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (isTokenValid(parsed)) {
+                return parsed;
+            } else {
+                localStorage.removeItem(AUTH_TOKENS_KEY);
+                return null;
+            }
         } catch { return null }
     })
     const [loading, setLoading] = useState(true)
@@ -46,21 +64,41 @@ export function AuthProvider({ children }) {
         return unsub
     }, [])
 
+    const invalidateTokens = useCallback(() => {
+        setTokens(null);
+        localStorage.removeItem(AUTH_TOKENS_KEY);
+    }, [])
+
     const login = useCallback(async () => {
         try {
+            googleProvider.setCustomParameters({ prompt: 'select_account' })
             const result = await signInWithPopup(auth, googleProvider)
             // Extract the Google OAuth access token from the popup result
             const credential = GoogleAuthProvider.credentialFromResult(result)
             const accessToken = credential?.accessToken
             if (accessToken) {
-                const newTokens = { access_token: accessToken }
+                const newTokens = {
+                    access_token: accessToken,
+                    issuedAt: Date.now(),
+                    expiresAt: Date.now() + 50 * 60 * 1000 // 50 minutes valid
+                }
                 setTokens(newTokens)
                 localStorage.setItem(AUTH_TOKENS_KEY, JSON.stringify(newTokens))
+                return newTokens
             }
+            return null
         } catch (err) {
             console.error('Firebase sign-in error:', err)
+            throw err
         }
     }, [])
+
+    const getFreshTokens = useCallback(async () => {
+        if (tokens && isTokenValid(tokens)) {
+            return tokens;
+        }
+        return await login();
+    }, [tokens, login])
 
     const logout = useCallback(async () => {
         await signOut(auth)
@@ -90,14 +128,19 @@ export function AuthProvider({ children }) {
         } catch {}
     }, [logout])
 
+    const isAuthed = Boolean(user && tokens && isTokenValid(tokens))
+
     return (
         <AuthContext.Provider value={{
             // Google auth (YouTube upload)
             user,
             tokens,
-            isAuthenticated: !!user && !!tokens,
+            isAuthenticated: isAuthed,
+            isTokenExpired: Boolean(user && (!tokens || !isTokenValid(tokens))),
             loading,
             login,
+            getFreshTokens,
+            invalidateTokens,
             logout,
 
             // App credentials auth
