@@ -152,6 +152,7 @@ class AutoPilotManager {
         };
 
         this.isCancelled = false;
+        autoPilotBrowser.clearHistory();
         this.status = 'running';
         this.currentJob = {
             id: uuidv4(),
@@ -270,13 +271,14 @@ class AutoPilotManager {
                 }
             };
 
-            // Collect reels until required count is achieved or cancelled
+            // Collect reels until required count is achieved or cancelled with dynamic hashtag & query rotation
             await autoPilotBrowser.searchAndCollectReels(
                 this.config.prompt,
                 handleReelDiscovered,
                 (msg) => this.log(msg, 'info'),
                 () => this.isCancelled || this.activeCandidates.length >= requiredClips,
-                25
+                25,
+                currentVideoNum
             );
 
             if (this.isCancelled) break;
