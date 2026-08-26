@@ -714,25 +714,74 @@ export default function AutoPilotWizard({ onClose }) {
                                                                     </div>
                                                                 )}
 
-                                                                {/* Number Badges */}
-                                                                <div>
-                                                                    <label className="form-label" style={{ fontSize: 12, marginBottom: 6 }}>Badge Preset Theme</label>
-                                                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                                                                        {Object.entries(BADGE_PRESETS).map(([key, data]) => (
-                                                                            <button
-                                                                                key={key}
-                                                                                type="button"
-                                                                                onClick={() => handleApplyBadgeTheme(key)}
-                                                                                className="prompt-chip"
-                                                                                style={{
-                                                                                    borderColor: badgeTheme === key ? '#FFD700' : 'rgba(255,255,255,0.1)',
-                                                                                    color: badgeTheme === key ? '#FFD700' : 'var(--text-secondary)'
-                                                                                }}
-                                                                            >
-                                                                                {data.name}
-                                                                            </button>
+                                                                {/* Individual Badge Pickers */}
+                                                                <div style={{ marginTop: 12 }}>
+                                                                    <label className="form-label" style={{ fontSize: 11.5, marginBottom: 6 }}>Individual Badge Colors</label>
+                                                                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${mode === 'ranking3' ? 3 : 5}, 1fr)`, gap: 8 }}>
+                                                                        {badgeColors.slice(0, mode === 'ranking3' ? 3 : 5).map((colorHex, idx) => (
+                                                                            <div key={idx}>
+                                                                                <label className="form-label" style={{ fontSize: 11, textAlign: 'center', display: 'block', marginBottom: 2 }}>
+                                                                                    Rank {idx + 1}.
+                                                                                </label>
+                                                                                <select
+                                                                                    className="form-select"
+                                                                                    value={colorHex}
+                                                                                    onChange={(e) => handleBadgeColorChange(idx, e.target.value)}
+                                                                                    style={{
+                                                                                        fontSize: 11,
+                                                                                        padding: '4px 6px',
+                                                                                        borderLeft: `4px solid ${colorHex}`
+                                                                                    }}
+                                                                                >
+                                                                                    {COLOR_OPTIONS.map(c => (
+                                                                                        <option key={c.hex} value={c.hex}>{c.label}</option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </div>
                                                                         ))}
                                                                     </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* ── 📱 Live Visual Text Overlay Preview ────────────────────── */}
+                                                        {mode !== 'compile' && (
+                                                            <div style={{
+                                                                background: '#09090e',
+                                                                border: '1px dashed rgba(255, 215, 0, 0.45)',
+                                                                borderRadius: 14,
+                                                                padding: '16px 20px',
+                                                                textAlign: 'center',
+                                                                boxShadow: 'inset 0 0 20px rgba(0,0,0,0.8)'
+                                                            }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                                    <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6, color: '#FFD700', fontWeight: 800 }}>
+                                                                        📱 Live Visual Text Overlay Preview
+                                                                    </span>
+                                                                    <span style={{ fontSize: 10.5, color: 'var(--text-hint)' }}>
+                                                                        {stylingMode === 'ai_random' ? '🤖 AI Rotating Themes' : '🎨 Custom Palette'}
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Simulated Title */}
+                                                                <div style={{ marginTop: 6, fontWeight: 900, fontSize: 20, letterSpacing: 1.2, textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 2px black' }}>
+                                                                    <div style={{ color: randomizeWordColors ? '#00FFFF' : (titleColor1 === 'cyan' ? '#00FFFF' : (COLOR_OPTIONS.find(c => c.value === titleColor1)?.hex || titleColor1)) }}>
+                                                                        {previewLine1 || 'KITTY'}
+                                                                    </div>
+                                                                    {previewLine2 && (
+                                                                        <div style={{ color: randomizeWordColors ? '#FF1493' : (titleColor2 === '#C11C84' ? '#C11C84' : (COLOR_OPTIONS.find(c => c.value === titleColor2)?.hex || titleColor2)) }}>
+                                                                            {previewLine2}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Simulated Badges */}
+                                                                <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
+                                                                    {(stylingMode === 'ai_random' ? ['#00FFFF', '#FF007F', '#FFE600', '#00FF66', '#A142F4'] : badgeColors).slice(0, mode === 'ranking3' ? 3 : 5).map((col, i) => (
+                                                                        <span key={i} style={{ color: col, fontWeight: 900, fontSize: 14, textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
+                                                                            {i + 1}. <span style={{ color: '#ffffff', fontSize: 11.5, fontWeight: 600 }}>Sample #{i + 1}</span>
+                                                                        </span>
+                                                                    ))}
                                                                 </div>
                                                             </div>
                                                         )}
