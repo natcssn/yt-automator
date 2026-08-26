@@ -57,4 +57,18 @@ router.get('/download', (req, res) => {
     fs.createReadStream(videoPath).pipe(res);
 });
 
+// Upload or reschedule a single video from shelf to YouTube
+router.post('/upload-single', async (req, res) => {
+    try {
+        const { videoId, tokens, options } = req.body;
+        if (!videoId || !tokens) {
+            return res.status(400).json({ error: 'videoId and tokens are required' });
+        }
+        const result = await autoPilotManager.uploadSingleVideo(videoId, tokens, options || {});
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

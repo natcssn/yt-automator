@@ -12,6 +12,25 @@ const {
 const { uploadToFilebin } = require('./filebinUpload');
 const { uploadToYouTube } = require('./youtubeUpload');
 
+const VIRAL_PALETTES = [
+    { name: 'Cyberpunk Neon', c1: '#00FFFF', c2: '#FF007F', badges: ['#00FFFF', '#FF007F', '#FFE600', '#00FF66', '#A142F4'] },
+    { name: 'Sunset Heat', c1: '#FFD700', c2: '#FF3366', badges: ['#FF3366', '#FF6600', '#FFCC00', '#FF0099', '#CC00FF'] },
+    { name: 'Electric Lime & Purple', c1: '#00FF66', c2: '#A142F4', badges: ['#00FF66', '#A142F4', '#00FFFF', '#FFFF00', '#FF3366'] },
+    { name: 'Classic Gold & Cyan', c1: '#00FFFF', c2: '#C11C84', badges: ['#FFFF00', '#00FFFF', '#FF3333', '#00FF66', '#C11C84'] },
+    { name: 'Olympian Metals', c1: '#FFD700', c2: '#00BFFF', badges: ['#FFD700', '#C0C0C0', '#CD7F32', '#00FFFF', '#57F287'] },
+    { name: 'Fire & Ice', c1: '#00BFFF', c2: '#FF4500', badges: ['#00BFFF', '#FF4500', '#00FFCC', '#FF8C00', '#FF1493'] },
+    { name: 'Neon Toxic', c1: '#39FF14', c2: '#FF073A', badges: ['#39FF14', '#FF073A', '#00F0FF', '#FFE600', '#B026FF'] },
+];
+
+const THEMATIC_TITLE_TEMPLATES = {
+    cats: ['KITTY MOMENTS', 'FELINE ZOOMIES', 'PURRFECT CLIPS', 'PAWSOME REELS', 'CUTEST KITTENS', 'CAT MADNESS', 'SWEET WHISKERS', 'SILLY PAWS'],
+    dogs: ['PUPPY MOMENTS', 'DOGGO ZOOMIES', 'GOOD BOYS ONLY', 'BARKTACULAR CLIPS', 'CUTEST PUPS', 'PAW PATROL', 'GOLDEN VIBES', 'TAIL WAGGERS'],
+    gym: ['GYM FAILS & WINS', 'BEAST MODE MOMENTS', 'IRON PUMP REELS', 'HEAVY LIFTS', 'GYM CHROMA', 'HARDCORE GAINS', 'PR SZN CLIPS', 'SAVAGE LIFTS'],
+    cars: ['SUPERCAR REVS', 'DRIFT KING MOMENTS', 'TURBO NIGHTS', 'EXHAUST FLAMES', 'APEX MONSTERS', 'HYPERCAR RUNS', 'HORSEPOWER GLORY', 'PURE SPEED'],
+    memes: ['DANK MEME VAULT', 'INTERNET GOLD', 'UNHINGED MOMENTS', 'TOP TIER HUMOR', 'PURE CHAOS REELS', 'BRAINROT ELITE', 'TIKTOK CLASSICS', 'ULTRA RELATABLE'],
+    general: ['TOP MOMENTS', 'VIRAL PULSE', 'EPIC REELS', 'GOLD STANDARD', 'BEST OF THE WEB', 'PRIME HIGHLIGHTS', 'UNREAL CLIPS', 'THE VIRAL DROP']
+};
+
 class AutoPilotManager {
     constructor() {
         this.io = null;
@@ -23,7 +42,11 @@ class AutoPilotManager {
             trimIndividualClips: true,
             clipTrimLimit: 10,
             targetVideoCount: 1,
-            autoUploadYouTube: false
+            autoUploadYouTube: false,
+            scheduleMode: 'daily', // 'daily' | 'twice_daily' | 'custom_days' | 'hourly' | 'instant'
+            scheduleDaysGap: 1,
+            scheduleHoursGap: 24,
+            stylingMode: 'ai_random' // 'ai_random' | 'custom'
         };
         this.currentJob = null;
         this.completedVideos = [];
@@ -59,44 +82,88 @@ class AutoPilotManager {
     }
 
     getState() {
-        const requiredClips = this.config.mode === 'ranking3' ? 3 : 5;
         return {
             status: this.status,
             config: this.config,
-            currentVideoIndex: (this.currentJob ? this.currentJob.videosCompleted : 0) + 1,
-            targetVideoCount: this.config.targetVideoCount,
+            currentJob: this.currentJob,
             candidateCount: this.activeCandidates.length,
-            requiredClips: requiredClips,
+            requiredClips: this.config.mode === 'ranking3' ? 3 : 5,
+            currentVideoIndex: this.currentJob ? this.currentJob.videosCompleted + 1 : 1,
+            targetVideoCount: this.config.targetVideoCount,
             completedVideos: this.completedVideos,
             terminalLogs: this.terminalLogs
         };
     }
 
-    async start(userConfig = {}) {
-        if (this.status === 'running') {
-            throw new Error('AutoPilot is already running.');
+    getThematicTitle(prompt = '', category = '', videoIndex = 1) {
+        const p = (prompt || '').toLowerCase();
+        let list = THEMATIC_TITLE_TEMPLATES.general;
+        if (p.includes('cat') || p.includes('kitten') || category.includes('cat')) {
+            list = THEMATIC_TITLE_TEMPLATES.cats;
+        } else if (p.includes('dog') || p.includes('puppy') || category.includes('dog')) {
+            list = THEMATIC_TITLE_TEMPLATES.dogs;
+        } else if (p.includes('gym') || p.includes('workout') || category.includes('gym')) {
+            list = THEMATIC_TITLE_TEMPLATES.gym;
+        } else if (p.includes('car') || p.includes('drift') || category.includes('car')) {
+            list = THEMATIC_TITLE_TEMPLATES.cars;
+        } else if (p.includes('meme') || p.includes('funny') || category.includes('meme')) {
+            list = THEMATIC_TITLE_TEMPLATES.memes;
         }
 
-        this.config = { ...this.config, ...userConfig };
-        this.config.targetVideoCount = Math.max(1, Number(this.config.targetVideoCount) || 1);
-        this.config.clipTrimLimit = Math.max(3, Number(this.config.clipTrimLimit) || 10);
-        this.isCancelled = false;
-        this.status = 'running';
-        this.activeCandidates = [];
+        const baseTitle = list[(videoIndex - 1) % list.length];
+        return baseTitle;
+    }
 
-        this.currentJob = {
-            id: uuidv4(),
-            startTime: Date.now(),
-            videosCompleted: 0,
-            totalScanned: 0,
-            acceptedCount: 0
+    calculatePublishTimestamp(videoIndex) {
+        // Mode: 'daily', 'twice_daily', 'custom_days', 'hourly', 'instant'
+        const mode = this.config.scheduleMode || 'daily';
+        let hoursOffset = 0;
+
+        if (mode === 'instant') {
+            return null; // Publish immediately
+        }
+
+        if (mode === 'daily') {
+            hoursOffset = (videoIndex - 1) * 24;
+        } else if (mode === 'twice_daily') {
+            hoursOffset = (videoIndex - 1) * 12;
+        } else if (mode === 'custom_days') {
+            const daysGap = Math.max(1, Number(this.config.scheduleDaysGap) || 1);
+            hoursOffset = (videoIndex - 1) * daysGap * 24;
+        } else if (mode === 'hourly') {
+            const hoursGap = Math.max(1, Number(this.config.scheduleHoursGap) || Number(this.config.youtubeScheduleIntervalHours) || 2);
+            hoursOffset = (videoIndex - 1) * hoursGap;
+        }
+
+        // Set base time at upcoming optimal hour (or +15 minutes from now for video 1)
+        const baseMs = Date.now() + 15 * 60 * 1000;
+        const targetMs = baseMs + (hoursOffset * 3600 * 1000);
+        return new Date(targetMs).toISOString();
+    }
+
+    async start(userConfig = {}) {
+        if (this.status === 'running') {
+            throw new Error('AutoPilot is already running a session.');
+        }
+
+        this.config = {
+            ...this.config,
+            ...userConfig
         };
 
-        this.log(`🚀 AutoPilot activated with prompt: "${this.config.prompt}"`, 'radar');
-        this.log(`⚙️ Mode: ${this.config.mode.toUpperCase()} | Target: ${this.config.targetVideoCount} full video(s) | Max Duration: 57s`, 'info');
+        this.isCancelled = false;
+        this.status = 'running';
+        this.currentJob = {
+            id: uuidv4(),
+            targetVideoCount: Number(this.config.targetVideoCount) || 1,
+            videosCompleted: 0,
+            startedAt: new Date().toISOString()
+        };
+
+        this.log(`🚀 Absolute AutoPilot activated with prompt: "${this.config.prompt}"`, 'radar');
+        this.log(`⚙️ Mode: ${this.config.mode.toUpperCase()} | Target: ${this.config.targetVideoCount} full video(s) | Schedule: ${(this.config.scheduleMode || 'daily').toUpperCase()}`, 'info');
         this.emitState();
 
-        // Run orchestration loop in background
         this.runLoop().catch(err => {
             console.error('[AutoPilotManager] Fatal runLoop error:', err);
             this.status = 'error';
@@ -158,65 +225,45 @@ class AutoPilotManager {
 
             // Create temporary working directory for this video's clips
             const videoBufferDir = path.join(WRITABLE_ROOT, `autopilot_buffer_${Date.now()}_${uuidv4().slice(0, 6)}`);
-            fs.mkdirSync(videoBufferDir, { recursive: true });
+            if (!fs.existsSync(videoBufferDir)) {
+                fs.mkdirSync(videoBufferDir, { recursive: true });
+            }
 
             this.activeCandidates = [];
-            const existingCaptions = [];
 
-            // Collector callback
+            // Step 2 & 3: Reel Discovery and AI Vision Evaluation
             const handleReelDiscovered = async (reelUrl) => {
-                if (this.isCancelled) return;
-                if (this.activeCandidates.length >= requiredClips) return;
+                if (this.isCancelled || this.activeCandidates.length >= requiredClips) return;
 
-                this.currentJob.totalScanned++;
                 this.log(`📥 Downloading candidate reel: ${reelUrl}...`, 'info');
-
                 try {
-                    const dlResult = await downloadReel(reelUrl, videoBufferDir);
-                    if (!dlResult || !dlResult.filePath || !fs.existsSync(dlResult.filePath)) {
-                        this.log(`⚠️ Skipped: Failed to extract media from ${reelUrl}`, 'warn');
+                    const downloadResult = await downloadReel(reelUrl, videoBufferDir);
+                    const clipPath = typeof downloadResult === 'string' ? downloadResult : downloadResult.filePath;
+
+                    if (!fs.existsSync(clipPath)) {
+                        this.log(`⚠️ Download file missing for ${reelUrl}`, 'warn');
                         return;
                     }
 
-                    // Step 3: Multimodal Vision Inspection
-                    this.log(`👁️ Gemini 2.5 Flash evaluating clip #${this.currentJob.totalScanned}...`, 'radar');
-                    const aiEval = await evaluateClipWithAI(dlResult.filePath, this.config.prompt, existingCaptions);
+                    this.log(`👁️ Gemini 2.5 Flash evaluating clip #${this.activeCandidates.length + 1}...`, 'radar');
+                    const existingCaptions = this.activeCandidates.map(c => c.caption);
+                    const evaluation = await evaluateClipWithAI(clipPath, this.config.prompt, existingCaptions);
 
-                    if (aiEval.isMatch) {
-                        this.currentJob.acceptedCount++;
-                        existingCaptions.push(aiEval.caption);
+                    if (evaluation.isMatch) {
+                        this.activeCandidates.push({
+                            reelUrl,
+                            filePath: clipPath,
+                            caption: evaluation.caption,
+                            category: evaluation.category,
+                            score: evaluation.score,
+                            reason: evaluation.reason
+                        });
 
-                        const candidateObj = {
-                            id: uuidv4(),
-                            filePath: dlResult.filePath,
-                            reelUrl: reelUrl,
-                            caption: aiEval.caption,
-                            score: aiEval.score,
-                            category: aiEval.category,
-                            reason: aiEval.reason
-                        };
-
-                        this.activeCandidates.push(candidateObj);
-                        this.log(`✅ Approved (${this.activeCandidates.length}/${requiredClips}): "${aiEval.caption}" (Match Score: ${aiEval.score}/10)`, 'success');
-
-                        if (this.io) {
-                            this.io.emit('autopilot:clip_accepted', {
-                                candidate: candidateObj,
-                                count: this.activeCandidates.length,
-                                required: requiredClips
-                            });
-                        }
+                        this.log(`✅ Approved (${this.activeCandidates.length}/${requiredClips}): "${evaluation.caption}" (Match Score: ${evaluation.score}/10)`, 'success');
                         this.emitState();
                     } else {
-                        // Reject and remove temp file
-                        this.log(`❌ Rejected Reel: ${aiEval.reason || 'Did not match theme'} (Score: ${aiEval.score}/10)`, 'warn');
-                        try { fs.unlinkSync(dlResult.filePath); } catch {}
-                        if (this.io) {
-                            this.io.emit('autopilot:clip_rejected', {
-                                url: reelUrl,
-                                reason: aiEval.reason
-                            });
-                        }
+                        this.log(`❌ Rejected Reel: ${evaluation.reason} (Score: ${evaluation.score}/10)`, 'warn');
+                        try { fs.unlinkSync(clipPath); } catch {}
                     }
                 } catch (err) {
                     this.log(`⚠️ Evaluation error on ${reelUrl}: ${err.message}`, 'warn');
@@ -239,7 +286,7 @@ class AutoPilotManager {
                 continue;
             }
 
-            // Step 4: Compile Final Video
+            // Step 4: Compile Final Video with AI Autonomous Styling or Custom Overrides
             this.log(`🎬 All ${requiredClips} clips gathered! Compiling Video #${currentVideoNum}...`, 'radar');
             this.emitState();
 
@@ -247,13 +294,28 @@ class AutoPilotManager {
             const outputPath = path.join(WRITABLE_ROOT, outputName);
             const captionsList = this.activeCandidates.map(c => c.caption);
 
-            // Determine Video Title
+            // Determine Video Title (Custom override or dynamic AI viral template)
             let titleText = 'TOP MOMENTS';
             if (this.config.customTitle && this.config.customTitle.trim()) {
                 titleText = this.config.customTitle.trim().toUpperCase();
-            } else if (this.activeCandidates[0] && this.activeCandidates[0].category) {
-                const cat = this.activeCandidates[0].category.toUpperCase();
-                titleText = cat.includes('CAT') ? 'KITTY MOMENTS' : cat.includes('DOG') ? 'PUPPY MOMENTS' : `${cat} MOMENTS`;
+            } else {
+                const category = this.activeCandidates[0]?.category || 'general';
+                titleText = this.getThematicTitle(this.config.prompt, category, currentVideoNum);
+            }
+
+            // Determine Aesthetics / Color Styling
+            let titleColor1 = this.config.titleColor1 || 'cyan';
+            let titleColor2 = this.config.titleColor2 || '#C11C84';
+            let badgeColors = this.config.badgeColors;
+            let randomizeWordColors = !!this.config.randomizeWordColors;
+
+            // If in AI Autonomous styling mode, pick fresh complementary viral palette per video
+            if (this.config.stylingMode !== 'custom') {
+                const palette = VIRAL_PALETTES[(currentVideoNum - 1) % VIRAL_PALETTES.length];
+                titleColor1 = palette.c1;
+                titleColor2 = palette.c2;
+                badgeColors = this.config.mode === 'ranking3' ? palette.badges.slice(0, 3) : palette.badges.slice(0, 5);
+                this.log(`🎨 AI Director assigned style "${palette.name}" for Video #${currentVideoNum}`, 'info');
             }
 
             try {
@@ -269,10 +331,10 @@ class AutoPilotManager {
                         outputFile: outputPath,
                         sortMode: 'provided',
                         cleanup: true,
-                        titleColor1: this.config.titleColor1,
-                        titleColor2: this.config.titleColor2,
-                        randomizeWordColors: !!this.config.randomizeWordColors,
-                        badgeColors: this.config.badgeColors
+                        titleColor1,
+                        titleColor2,
+                        randomizeWordColors,
+                        badgeColors
                     });
                 }
 
@@ -301,17 +363,16 @@ class AutoPilotManager {
                     createdAt: new Date().toISOString()
                 };
 
-                // Automatic YouTube Upload & Scheduling (if enabled)
+                // Automatic YouTube Upload & Multi-Day Drip Scheduling (if enabled)
                 if (this.config.autoUploadYouTube && this.config.youtubeTokens) {
                     try {
                         this.log(`📤 Auto-uploading Video #${currentVideoNum} to YouTube...`, 'radar');
-                        
-                        let publishAt = null;
-                        const scheduleIntervalHours = Number(this.config.youtubeScheduleIntervalHours) || 0;
-                        if (scheduleIntervalHours > 0) {
-                            const delayMs = (currentVideoNum - 1) * scheduleIntervalHours * 3600 * 1000;
-                            publishAt = new Date(Date.now() + Math.max(delayMs, 10 * 60 * 1000)).toISOString();
-                            this.log(`📅 Video #${currentVideoNum} scheduled for release at: ${new Date(publishAt).toLocaleString()}`, 'info');
+                        const publishAt = this.calculatePublishTimestamp(currentVideoNum);
+
+                        if (publishAt) {
+                            const dateStr = new Date(publishAt).toLocaleDateString();
+                            const timeStr = new Date(publishAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            this.log(`📅 Video #${currentVideoNum} scheduled for release on: ${dateStr} at ${timeStr} (Quota-Safe Drip)`, 'info');
                         }
 
                         const ytMetadata = {
@@ -328,7 +389,7 @@ class AutoPilotManager {
                             videoRecord.youtubeId = ytResult.id;
                             videoRecord.youtubeUrl = `https://youtu.be/${ytResult.id}`;
                             videoRecord.publishAt = publishAt;
-                            this.log(`🎉 Successfully published to YouTube! Link: https://youtu.be/${ytResult.id}`, 'success');
+                            this.log(`🎉 Successfully published Video #${currentVideoNum} to YouTube! Link: https://youtu.be/${ytResult.id}`, 'success');
                         }
                     } catch (ytErr) {
                         this.log(`⚠️ YouTube upload error for Video #${currentVideoNum}: ${ytErr.message}`, 'warn');
@@ -361,6 +422,38 @@ class AutoPilotManager {
             this.status = 'idle';
         }
         this.emitState();
+    }
+
+    // Manual single upload from Video Shelf
+    async uploadSingleVideo(videoId, tokens, options = {}) {
+        const record = this.completedVideos.find(v => v.id === videoId);
+        if (!record) throw new Error('Video record not found in shelf');
+        if (!fs.existsSync(record.filePath)) throw new Error('Video file not found on disk');
+
+        const {
+            publishAt = null,
+            privacyStatus = 'public',
+            customTitle = record.title,
+            category = '22'
+        } = options;
+
+        const ytMetadata = {
+            title: `${customTitle} #Shorts`,
+            description: `Best moments curated automatically by YT Automation Studio.\n\n#Shorts #viral #ranking`,
+            tags: ['shorts', 'viral', 'ranking'],
+            privacyStatus,
+            categoryId: category,
+            publishAt
+        };
+
+        const ytResult = await uploadToYouTube(record.filePath, ytMetadata, tokens);
+        if (ytResult && ytResult.id) {
+            record.youtubeId = ytResult.id;
+            record.youtubeUrl = `https://youtu.be/${ytResult.id}`;
+            record.publishAt = publishAt;
+            this.emitState();
+        }
+        return { success: true, youtubeId: ytResult.id, youtubeUrl: `https://youtu.be/${ytResult.id}` };
     }
 }
 
