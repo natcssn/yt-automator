@@ -1,64 +1,57 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLIENT_DIR="$ROOT_DIR/client"
 SERVER_DIR="$ROOT_DIR/server"
 ENV_FILE="$SERVER_DIR/.env"
 
+echo "====================================================="
+echo "   ✨ Launching YT Automation Studio + AutoPilot AI   "
+echo "====================================================="
+
 if ! command -v npm >/dev/null 2>&1; then
-  echo "Error: npm is required but was not found in PATH."
+  echo "❌ Error: npm is required but was not found in PATH."
   exit 1
 fi
 
-install_deps_if_needed() {
-  local dir="$1"
-  local name="$2"
+if [[ ! -d "$SERVER_DIR/node_modules" ]]; then
+  echo "📦 Installing server dependencies..."
+  (cd "$SERVER_DIR" && npm install)
+fi
 
-  if [[ ! -d "$dir/node_modules" ]]; then
-    echo "Installing $name dependencies..."
-    npm --prefix "$dir" install
-  fi
-}
-
-install_deps_if_needed "$SERVER_DIR" "server"
-install_deps_if_needed "$CLIENT_DIR" "client"
+if [[ ! -d "$CLIENT_DIR/node_modules" ]]; then
+  echo "📦 Installing client dependencies..."
+  (cd "$CLIENT_DIR" && npm install)
+fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  echo "Creating default .env from .env.example..."
+  echo "⚙️ Creating server .env from .env.example..."
   cp "$SERVER_DIR/.env.example" "$ENV_FILE"
 fi
 
 cleanup() {
-  echo
-  echo "Stopping services..."
-  local pids
-  pids="$(jobs -p)"
-  if [[ -n "$pids" ]]; then
-    kill $pids 2>/dev/null || true
-  fi
+  echo ""
+  echo "🛑 Stopping all running services..."
+  kill $(jobs -p) 2>/dev/null || true
+  exit 0
 }
 
-trap cleanup EXIT INT TERM
+trap cleanup SIGINT SIGTERM EXIT
 
-echo "Starting backend on http://localhost:5000"
-npm --prefix "$SERVER_DIR" run dev &
+echo "🚀 Starting Express backend on http://localhost:5000..."
+(cd "$SERVER_DIR" && npm start) &
 SERVER_PID=$!
 
-echo "Starting frontend on http://localhost:5173"
-npm --prefix "$CLIENT_DIR" run dev &
+echo "⚡ Starting Vite frontend on http://localhost:5173..."
+(cd "$CLIENT_DIR" && npm run dev) &
 CLIENT_PID=$!
 
-echo
-echo "Both services are running. Press Ctrl+C to stop."
+echo ""
+echo "✅ Both services are up and running!"
+echo "🌐 Open your browser at: http://localhost:5173"
+echo "👉 Press Ctrl+C at any time to stop."
+echo "====================================================="
+echo ""
 
-set +e
-wait -n "$SERVER_PID" "$CLIENT_PID"
-EXIT_CODE=$?
-set -e
-
-if [[ $EXIT_CODE -ne 0 ]]; then
-  echo
-  echo "A service exited with code $EXIT_CODE. Shutting down the other service..."
-  exit $EXIT_CODE
-fi
+wait
